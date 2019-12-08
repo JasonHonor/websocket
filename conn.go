@@ -273,7 +273,7 @@ type Conn struct {
 	readMaskKey   [4]byte
 	handlePong    func(string) error
 	handlePing    func(string) error
-	handleClose   func(int, string) error
+	handleClose   func(*Conn, int, string) error
 	readErrCount  int
 	messageReader *messageReader // the current low-level reader
 
@@ -942,7 +942,7 @@ func (c *Conn) advanceFrame() (int, error) {
 				return noFrame, c.handleProtocolError("invalid utf8 payload in close frame")
 			}
 		}
-		if err := c.handleClose(closeCode, closeText); err != nil {
+		if err := c.handleClose(c, closeCode, closeText); err != nil {
 			return noFrame, err
 		}
 		return noFrame, &CloseError{Code: closeCode, Text: closeText}
@@ -1085,7 +1085,7 @@ func (c *Conn) SetReadLimit(limit int64) {
 }
 
 // CloseHandler returns the current close handler
-func (c *Conn) CloseHandler() func(code int, text string) error {
+func (c *Conn) CloseHandler() func(cx *Conn, code int, text string) error {
 	return c.handleClose
 }
 
@@ -1103,9 +1103,9 @@ func (c *Conn) CloseHandler() func(code int, text string) error {
 // normal error handling. Applications should only set a close handler when the
 // application must perform some action before sending a close message back to
 // the peer.
-func (c *Conn) SetCloseHandler(h func(code int, text string) error) {
+func (c *Conn) SetCloseHandler(h func(cx *Conn, code int, text string) error) {
 	if h == nil {
-		h = func(code int, text string) error {
+		h = func(cx *Conn, code int, text string) error {
 			message := FormatCloseMessage(code, "")
 			c.WriteControl(CloseMessage, message, time.Now().Add(writeWait))
 			return nil
