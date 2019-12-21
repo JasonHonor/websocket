@@ -271,7 +271,7 @@ type Conn struct {
 	readLimit     int64 // Maximum message size.
 	readMaskPos   int
 	readMaskKey   [4]byte
-	handlePong    func(string) error
+	handlePong    func(*Conn, string) error
 	handlePing    func(string) error
 	handleClose   func(*Conn, int, string) error
 	readErrCount  int
@@ -922,7 +922,7 @@ func (c *Conn) advanceFrame() (int, error) {
 
 	switch frameType {
 	case PongMessage:
-		if err := c.handlePong(string(payload)); err != nil {
+		if err := c.handlePong(c, string(payload)); err != nil {
 			return noFrame, err
 		}
 	case PingMessage:
@@ -1142,7 +1142,7 @@ func (c *Conn) SetPingHandler(h func(appData string) error) {
 }
 
 // PongHandler returns the current pong handler
-func (c *Conn) PongHandler() func(appData string) error {
+func (c *Conn) PongHandler() func(cx *Conn, appData string) error {
 	return c.handlePong
 }
 
@@ -1153,9 +1153,9 @@ func (c *Conn) PongHandler() func(appData string) error {
 // The handler function is called from the NextReader, ReadMessage and message
 // reader Read methods. The application must read the connection to process
 // pong messages as described in the section on Control Messages above.
-func (c *Conn) SetPongHandler(h func(appData string) error) {
+func (c *Conn) SetPongHandler(h func(cx *Conn, appData string) error) {
 	if h == nil {
-		h = func(string) error { return nil }
+		h = func(*Conn, string) error { return nil }
 	}
 	c.handlePong = h
 }
